@@ -52,7 +52,7 @@ void read_char(int sd, char* c);
 void send_char(int sd, char* c);
 void send_request(int sd, Request* req);
 void read_request(int sd, Request* req);
-void sendToHost(char* hostname, int timestamp, int type);
+void sendToHost(char* hostname, int timestamp);
 void printRequest(Request* req);
 void addRequestToList(Request_list* req_list, Request* req);
 void printRequestList(Request_list* req_list);
@@ -151,10 +151,9 @@ int main(int argc, char *argv[])
         }
         else{ // no ready sockets
             ++timestamp;
-            int type = 0;
-            sendToHost(servername[0],timestamp, type);
-            sendToHost(clientname[0],timestamp, type);
-            sendToHost(clientname[1],timestamp, type);
+            sendToHost(servername[0],timestamp);
+            sendToHost(clientname[0],timestamp);
+            sendToHost(clientname[1],timestamp);
             
             
         }
@@ -173,7 +172,7 @@ void handleClient(int* arg){
     printRequestList(req_list);
 }
 
-void sendToHost(char *hostname, int timestamp, int type){
+void sendToHost(char *hostname, int timestamp){
     int  sd;
     struct sockaddr_in pin;
     struct hostent *hp;
