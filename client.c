@@ -56,6 +56,7 @@ void send_char(int sd, char* c);
 void send_request(int sd, Request* req);
 void read_request(int sd, Request* req);
 void sendToHost(char* hostname, int* timestamp, int* clientID, int* type, int* filename);
+void sendToServer(char* hostname, int* type, int* filename, char* line);
 void printRequest(Request* req);
 void addRequestToList(Request_list* req_list, Request* req);
 void printRequestList(Request_list* req_list);
@@ -189,6 +190,10 @@ int main(int argc, char *argv[])
             req->file = filename;
             req->ack = 0;
             
+            if(type == 1){
+                sprintf(req->line, "Client%d writes to file%d\n", clientID, req->file+1);
+            }
+            
             if(req->file == 0){
                 addRequestToList(req_list1, req);
             }
@@ -317,7 +322,7 @@ Request* executeRequest(){
     }
     
     if(p!= NULL){
-        sendToHost(servername[0], &(p->timestamp), &(p->clientID), &(p->type), &(p->file));
+        sendToServer(servername[0], &(p->type), &(p->file), p->line);
     }
     
     return p;
@@ -372,25 +377,56 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
         req->file = *filename;
         req->ack = 0;
         
-        int i = 0;
-        for(i = 0; i < 5; ++i){
-            if(strcmp(hostname, clientname[i]) == 0){
-                send_request(sd, req);
-                return;
-            }
-        }
-        
-        char buf[BUFSIZ];
-        for(i = 0; i < 3; ++i){
-            if(strcmp(hostname, servername[i]) == 0){
-                send_request(sd, req);
-                read_message(sd, buf);
-                printf("%s", buf);
-                return;
-            }
-        }
+        send_request(sd, req);
+        return;
     }
     
+}
+
+void sendToServer(char* hostname, int* type, int* filename, char* line){
+    int  sd;
+    struct sockaddr_in pin;
+    struct hostent *hp;
+    
+    
+    /* create an Internet domain stream socket */
+    if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("Error creating socket");
+        exit(1);
+    }
+    
+    /* lookup host machine information */
+    if ((hp = gethostbyname(hostname)) == 0) {
+        perror("Error on gethostbyname call");
+        exit(1);
+    }
+    
+    /* fill in the socket address structure with host information */
+    memset(&pin, 0, sizeof(pin));
+    pin.sin_family = AF_INET;
+    pin.sin_addr.s_addr = ((struct in_addr *)(hp->h_addr))->s_addr;
+    pin.sin_port = htons(port); /* convert to network byte order */
+    
+    
+    printf("Connecting to %s:%d\n\n", hostname, port);
+    
+    /* connect to port on host */
+    if (connect(sd,(struct sockaddr *)  &pin, sizeof(pin)) == -1) {
+        perror("Error on connect call");
+        //exit(1);
+    }
+    else{
+        Request* req = (Request*)malloc(sizeof(Request));
+        req->type = *type;
+        req->file = *filename;
+        strcpy(req->line, line);
+        
+        char buf[BUFSIZ];
+        send_request(sd, req);
+        read_message(sd, buf);
+        printf("%s", buf);
+        return;
+    }
 }
 
 void printRequest(Request* req){
