@@ -18,14 +18,15 @@
 
 #define BUFSIZE     80
 #define port        3304
-#define numOfClient 2
+#define numOfClient 5
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 typedef struct Request{
     int timestamp;
     int clientID;
     int type;  //type = 0 read; type = 1 write; type = 2 acknowledgment; type = 3 release
-    char filename[BUFSIZE];
+    int file;
+    int ack;
     char line[BUFSIZE];
     struct Request* next;
     struct Request* prev;
@@ -41,7 +42,9 @@ char     clientname[5][BUFSIZE];
 char     filename[3][BUFSIZE];
 int      timestamp;
 int      clientID;
-Request_list* req_list;
+Request_list* req_list1;
+Request_list* req_list2;
+Request_list* req_list3;
 
 
 
@@ -52,10 +55,14 @@ void read_char(int sd, char* c);
 void send_char(int sd, char* c);
 void send_request(int sd, Request* req);
 void read_request(int sd, Request* req);
-void sendToHost(char* hostname, int timestamp);
+void sendToHost(char* hostname, int* timestamp, int* clientID, int* type, int* filename);
 void printRequest(Request* req);
 void addRequestToList(Request_list* req_list, Request* req);
 void printRequestList(Request_list* req_list);
+Request_list* createList();
+Request* getRequest(Request_list* list, int timestamp, int clientID);
+Request* executeRequest(int* clientID, Request_list* req_list1, Request_list* req_list2, Request_list* req_list3);
+void removeRequest(Request* req);
 
 int main(int argc, char *argv[])
 {
@@ -79,8 +86,8 @@ int main(int argc, char *argv[])
     strcpy(clientname[4], "dc08.utdallas.edu");
     
     strcpy(filename[0], "file1");
-    strcpy(filename[0], "file2");
-    strcpy(filename[0], "file3");
+    strcpy(filename[1], "file2");
+    strcpy(filename[2], "file3");
     
     /* create an internet domain stream socket */
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -115,14 +122,11 @@ int main(int argc, char *argv[])
         }
     }
     printf("Client is running on %s:%d\n", host, port);
+    usleep(5000000);
     timestamp = 0;
-    req_list = (Request_list*)malloc(sizeof(Request_list));
-    req_list->head = (Request*)malloc(sizeof(Request));
-    req_list->tail = (Request*)malloc(sizeof(Request));
-    req_list->head->prev = NULL;
-    req_list->head->next = req_list->tail;
-    req_list->tail->prev = req_list->head;
-    req_list->tail->next = NULL;
+    req_list1 = createList();
+    req_list2 = createList();
+    req_list3 = createList();
     
     addrlen = sizeof(pin);
     while (1)
@@ -132,6 +136,8 @@ int main(int argc, char *argv[])
         FD_SET(sd, &readfds);
         struct timeval timeout;
         timeout.tv_sec = 1;
+        
+        srand(time(NULL));
         
         int ret = select(5, &readfds, NULL, NULL, &timeout);
         
@@ -150,11 +156,56 @@ int main(int argc, char *argv[])
             
         }
         else{ // no ready sockets
-            ++timestamp;
-            sendToHost(servername[0],timestamp);
-            sendToHost(clientname[0],timestamp);
-            sendToHost(clientname[1],timestamp);
             
+            printf("List1: ");
+            printRequestList(req_list1);
+            printf("List2: ");
+            printRequestList(req_list2);
+            printf("List3: ");
+            printRequestList(req_list3);
+            
+            //send releasing message
+            Request* p = executeRequest(&clientID, req_list1, req_list2, req_list3);
+            if(p != NULL){
+                int type = 3;
+                printf("Releasing :");
+                printRequest(p);
+                sendToHost(clientname[0], &(p->timestamp), &(p->clientID), &type, &(p->file));
+                sendToHost(clientname[1], &(p->timestamp), &(p->clientID), &type, &(p->file));
+                sendToHost(clientname[2], &(p->timestamp), &(p->clientID), &type, &(p->file));
+                sendToHost(clientname[3], &(p->timestamp), &(p->clientID), &type, &(p->file));
+                sendToHost(clientname[4], &(p->timestamp), &(p->clientID), &type, &(p->file));
+            }
+            
+            //send read/write request
+            ++timestamp;
+            int type = (rand()%2);
+            int filename = (rand()%3);
+            
+            Request* req = (Request*)malloc(sizeof(Request));
+            req->timestamp = timestamp;
+            req->clientID = clientID;
+            req->type = type;
+            req->file = filename;
+            req->ack = 0;
+            
+            if(req->file == 0){
+                addRequestToList(req_list1, req);
+            }
+            if(req->file == 1){
+                addRequestToList(req_list2, req);
+            }
+            if(req->file == 2){
+                addRequestToList(req_list3, req);
+            }
+            
+            req->ack++;
+            
+            sendToHost(clientname[0], &timestamp, &clientID, &type, &filename);
+            sendToHost(clientname[1], &timestamp, &clientID, &type, &filename);
+            sendToHost(clientname[2], &timestamp, &clientID, &type, &filename);
+            sendToHost(clientname[3], &timestamp, &clientID, &type, &filename);
+            sendToHost(clientname[4], &timestamp, &clientID, &type, &filename);
             
         }
     }
@@ -168,11 +219,116 @@ void handleClient(int* arg){
     Request* req = (Request*)malloc(sizeof(Request));
     read_request(sd, req);
     timestamp = MAX(timestamp, req->timestamp);
-    addRequestToList(req_list, req);
-    printRequestList(req_list);
+    if((req->type == 0 || req->type == 1) && (req->clientID != clientID)){
+       if(req->file == 0){
+           addRequestToList(req_list1, req);
+       }
+       if(req->file == 1){
+           addRequestToList(req_list2, req);
+       }
+        if(req->file == 2){
+           addRequestToList(req_list3, req);
+        }
+
+        int type = 2;
+        //send ack
+        sendToHost(clientname[req->clientID-1],&(req->timestamp), &(req->clientID), &type, &(req->file));
+    }
+    if(req->type == 2){
+        Request_list* l;
+        if(req->file == 0){
+            l = req_list1;
+        }
+        else if(req->file == 1){
+            l = req_list2;
+        }
+        else{
+            l = req_list3;
+        }
+        Request* p = getRequest(l, req->timestamp, req->clientID);
+        if(p == NULL){
+            printf("NULL error\n");
+            printRequest(req);
+            printf("\n");
+        }
+        else
+            p->ack++;
+    }
+    if(req->type == 3){
+        Request_list* l;
+        if(req->file == 0){
+            l = req_list1;
+        }
+        else if(req->file == 1){
+            l = req_list2;
+        }
+        else{
+            l = req_list3;
+        }
+        Request* p = getRequest(l, req->timestamp, req->clientID);
+        if(p == NULL){
+           printf("NULL error\n");
+           printRequest(req);
+           printf("\n");
+        }
+        else{
+            printf("Delete: ");
+            printRequest(p);
+            removeRequest(p);
+        }
+    }
 }
 
-void sendToHost(char *hostname, int timestamp){
+Request_list* createList(){
+    Request_list* req_list = (Request_list*)malloc(sizeof(Request_list));
+    req_list->head = (Request*)malloc(sizeof(Request));
+    req_list->tail = (Request*)malloc(sizeof(Request));
+    req_list->head->prev = NULL;
+    req_list->head->next = req_list->tail;
+    req_list->tail->prev = req_list->head;
+    req_list->tail->next = NULL;
+    return req_list;
+}
+
+Request* getRequest(Request_list* list, int timestamp, int clientID){
+    Request* p = list->head->next;
+    while(p!=list->tail){
+        if(p->clientID == clientID && p->timestamp == timestamp)
+            return p;
+        else
+            p = p->next;
+    }
+    return NULL;
+}
+
+Request* executeRequest(int* clientID, Request_list* req_list1, Request_list* req_list2, Request_list* req_list3){
+    Request* p1 = req_list1->head->next;
+    Request* p2 = req_list2->head->next;
+    Request* p3 = req_list3->head->next;
+    if(p1 != req_list1->tail && p1->clientID == *clientID && p1->ack == numOfClient){
+        return p1;
+    }
+    else if(p2 != req_list2->tail && p2->clientID == *clientID && p2->ack == numOfClient){
+        return p2;
+    }
+    else if(p3 != req_list3->tail && p3->clientID == *clientID && p3->ack == numOfClient){
+        return p3;
+    }
+    else{
+        return NULL;
+    }
+}
+
+void removeRequest(Request* req){
+    Request* prev = req->prev;
+    Request* next = req->next;
+    prev->next = next;
+    next->prev = prev;
+    free(req);
+    return;
+}
+
+void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* filename){
     int  sd;
     struct sockaddr_in pin;
     struct hostent *hp;
@@ -206,17 +362,18 @@ void sendToHost(char *hostname, int timestamp){
     }
     else{
         Request* req = (Request*)malloc(sizeof(Request));
-        req->timestamp = timestamp;
-        req->clientID = clientID;
-        req->type = 0;
-        printf("sending request...");
+        req->timestamp = *timestamp;
+        req->clientID = *clientID;
+        req->type = *type;
+        req->file = *filename;
+        req->ack = 0;
         send_request(sd, req);
     }
     
 }
 
 void printRequest(Request* req){
-    printf("Get request from %d, Timestamp: %d, request type is %d\n", req->clientID, req->timestamp, req->type);
+    printf("Client %d, Timestamp: %d, request type is %d, request file is %d, ack is %d\n", req->clientID, req->timestamp, req->type, req->file, req->ack);
 }
 
 void addRequestToList(Request_list* req_list, Request* req){
