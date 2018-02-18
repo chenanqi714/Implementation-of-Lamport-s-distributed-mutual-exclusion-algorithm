@@ -59,9 +59,9 @@ void sendToHost(char* hostname, int* timestamp, int* clientID, int* type, int* f
 void printRequest(Request* req);
 void addRequestToList(Request_list* req_list, Request* req);
 void printRequestList(Request_list* req_list);
-Request_list* createList();
+Request_list* createList(void);
 Request* getRequest(Request_list* list, int timestamp, int clientID);
-Request* executeRequest(int* clientID, Request_list* req_list1, Request_list* req_list2, Request_list* req_list3);
+Request* executeRequest(void);
 void removeRequest(Request* req);
 
 int main(int argc, char *argv[])
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
             printRequestList(req_list3);
             
             //send releasing message
-            Request* p = executeRequest(&clientID, req_list1, req_list2, req_list3);
+            Request* p = executeRequest();
             if(p != NULL){
                 int type = 3;
                 printf("Releasing :");
@@ -301,18 +301,18 @@ Request* getRequest(Request_list* list, int timestamp, int clientID){
     return NULL;
 }
 
-Request* executeRequest(int* clientID, Request_list* req_list1, Request_list* req_list2, Request_list* req_list3){
+Request* executeRequest(){
     Request* p1 = req_list1->head->next;
     Request* p2 = req_list2->head->next;
     Request* p3 = req_list3->head->next;
     Request* p = NULL;
-    if(p1 != req_list1->tail && p1->clientID == *clientID && p1->ack == numOfClient){
+    if(p1 != req_list1->tail && p1->clientID == clientID && p1->ack == numOfClient){
         p = p1;
     }
-    else if(p2 != req_list2->tail && p2->clientID == *clientID && p2->ack == numOfClient){
+    else if(p2 != req_list2->tail && p2->clientID == clientID && p2->ack == numOfClient){
         p = p2;
     }
-    else if(p3 != req_list3->tail && p3->clientID == *clientID && p3->ack == numOfClient){
+    else if(p3 != req_list3->tail && p3->clientID == clientID && p3->ack == numOfClient){
         p = p3;
     }
     
