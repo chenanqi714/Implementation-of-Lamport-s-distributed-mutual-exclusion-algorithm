@@ -23,9 +23,19 @@ typedef struct Request{
     int timestamp;
     int clientID;
     int type;  //type = 0 read; type = 1 write; type = 2 acknowledgment; type = 3 release
-    char filename[BUFSIZE];
+    int file;
+    int ack;
     char line[BUFSIZE];
+    struct Request* next;
+    struct Request* prev;
 }Request;
+
+char     servername[3][BUFSIZE];
+char     clientname[5][BUFSIZE];
+char     filename[3][BUFSIZE];
+char     directoryname[3][BUFSIZE];
+int      serverID;
+char*    home_dir;
 
 void* handleClient(void*);
 void read_message(int sd, char* mesg);
@@ -46,6 +56,25 @@ int main(int argc, const char * argv[]) {
     struct   sockaddr_in pin;
     pthread_t tid;
     pthread_attr_t attr;
+    
+    strcpy(servername[0], "dc01.utdallas.edu");
+    strcpy(servername[1], "dc02.utdallas.edu");
+    strcpy(servername[2], "dc03.utdallas.edu");
+    
+    strcpy(clientname[0], "dc04.utdallas.edu");
+    strcpy(clientname[1], "dc05.utdallas.edu");
+    strcpy(clientname[2], "dc06.utdallas.edu");
+    strcpy(clientname[3], "dc07.utdallas.edu");
+    strcpy(clientname[4], "dc08.utdallas.edu");
+    
+    strcpy(filename[0], "file1");
+    strcpy(filename[1], "file2");
+    strcpy(filename[2], "file3");
+    
+    strcpy(directoryname[0], "dir1");
+    strcpy(directoryname[1], "dir2");
+    strcpy(directoryname[2], "dir3");
+    
     
     
     
@@ -75,6 +104,14 @@ int main(int argc, const char * argv[]) {
     
     /* announce server is running */
     gethostname(host, BUFSIZE);
+    int i = 0;
+    for(i = 0; i < 3; ++i){
+        if(strcmp(host, servername[i]) == 0){
+            serverID = i+1;
+            home_dir = directoryname[i];
+        }
+    }
+    
     printf("Server is running on %s:%d\n", host, port);
     
     pthread_attr_init(&attr);
@@ -105,11 +142,32 @@ void* handleClient(void* arg){
     free(arg);
     Request* req = (Request*)malloc(sizeof(Request));
     read_request(sd, req);
+    
+    char path[BUFSIZ];
+    strcpy(path, home_dir);
+    strcat(path, "/");
+    strcat(path, filename[req->file]);
+
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        printf("Error loading file.\n");
+        printf("path is %s\n", path);
+        _exit(1);
+    }
+    char *line;
+    size_t len = 0;
+    line = (char *)malloc(BUFSIZ * sizeof(char));
+    while (getline(&line, &len, f) != -1) {             // read from file line by line
+        printf("%s\n", line);
+    }
+    free(line);
+    fclose(f);
+    
     printRequest(req);
 }
 
 void printRequest(Request* req){
-    printf("Get request from %d, Timestamp: %d, request type is %d\n", req->clientID, req->timestamp, req->type);
+    printf("Get request from %d, Timestamp: %d, request type is %d, file is %d\n", req->clientID, req->timestamp, req->type, req->file);
 }
 
 
