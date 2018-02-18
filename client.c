@@ -371,7 +371,24 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
         req->type = *type;
         req->file = *filename;
         req->ack = 0;
-        send_request(sd, req);
+        
+        int i = 0;
+        for(i = 0; i < 5; ++i){
+            if(strcmp(hostname, clientname[i]) == 0){
+                send_request(sd, req);
+                return;
+            }
+        }
+        
+        char buf[BUFSIZ];
+        for(i = 0; i < 3; ++i){
+            if(strcmp(hostname, servername[i]) == 0){
+                send_request(sd, req);
+                read_message(sd, buf);
+                printf("%s", buf);
+                return;
+            }
+        }
     }
     
 }

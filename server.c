@@ -155,14 +155,20 @@ void* handleClient(void* arg){
         _exit(1);
     }
     char *line;
+    char buf[BUFSIZ];
     size_t len = 0;
     line = (char *)malloc(BUFSIZ * sizeof(char));
     while (getline(&line, &len, f) != -1) {             // read from file line by line
-        printf("%s\n", line);
+        strcpy(buf, line);
+        //printf("%s\n", line);
     }
     free(line);
     fclose(f);
     
+    char mesg[BUFSIZ];
+    sprintf(mesg, "Read last line from file%d: %s\n", req->file+1, buf);
+    printf("%s", mesg);
+    send_message(sd, mesg);
     printRequest(req);
 }
 
