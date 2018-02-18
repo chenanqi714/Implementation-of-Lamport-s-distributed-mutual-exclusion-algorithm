@@ -305,18 +305,22 @@ Request* executeRequest(int* clientID, Request_list* req_list1, Request_list* re
     Request* p1 = req_list1->head->next;
     Request* p2 = req_list2->head->next;
     Request* p3 = req_list3->head->next;
+    Request* p = NULL;
     if(p1 != req_list1->tail && p1->clientID == *clientID && p1->ack == numOfClient){
-        return p1;
+        p = p1;
     }
     else if(p2 != req_list2->tail && p2->clientID == *clientID && p2->ack == numOfClient){
-        return p2;
+        p = p2;
     }
     else if(p3 != req_list3->tail && p3->clientID == *clientID && p3->ack == numOfClient){
-        return p3;
+        p = p3;
     }
-    else{
-        return NULL;
+    
+    if(p!= NULL){
+        sendToHost(servername[0], &(p->timestamp), &(p->clientID), &(p->type), &(p->file));
     }
+    
+    return p;
 }
 
 void removeRequest(Request* req){
