@@ -322,8 +322,15 @@ Request* executeRequest(){
     }
     
     if(p!= NULL){
-        sendToServer(servername[0], &(p->type), &(p->file), p->line);
-        //printf("Line is %s\n", p->line);
+        if(p->type == 0){
+            int i = rand()%3;
+            sendToServer(servername[i], &(p->type), &(p->file), p->line);
+        }
+        else{
+            sendToServer(servername[0], &(p->type), &(p->file), p->line);
+            sendToServer(servername[1], &(p->type), &(p->file), p->line);
+            sendToServer(servername[2], &(p->type), &(p->file), p->line);
+        }
     }
     
     return p;
@@ -421,7 +428,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
         req->type = *type;
         req->file = *filename;
         strcpy(req->line, line);
-        printf("Line is %s\n", req->line);
+        //printf("Line is %s\n", req->line);
         
         char buf[BUFSIZ];
         send_request(sd, req);
