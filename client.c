@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
             req->ack = 0;
             
             if(type == 1){
-                sprintf(req->line, "Client%d writes to file%d\n", clientID, req->file+1);
+                sprintf(req->line, "Client id: %d, timestamp: %d\n", clientID, timestamp);
             }
             
             if(req->file == 0){
@@ -376,7 +376,7 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
     /* connect to port on host */
     if (connect(sd,(struct sockaddr *)  &pin, sizeof(pin)) == -1) {
         perror("Error on connect call");
-        //exit(1);
+        exit(1);
     }
     else{
         Request* req = (Request*)malloc(sizeof(Request));
@@ -422,7 +422,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
     /* connect to port on host */
     if (connect(sd,(struct sockaddr *)  &pin, sizeof(pin)) == -1) {
         perror("Error on connect call");
-        //exit(1);
+        exit(1);
     }
     else{
         Request* req = (Request*)malloc(sizeof(Request));

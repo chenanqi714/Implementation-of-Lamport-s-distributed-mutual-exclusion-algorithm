@@ -1,3 +1,15 @@
 Hello world
 My name is Anqi Chen
-This is file3
+This is file3Client2 writes to file3
+Client5 writes to file3
+Client3 writes to file3
+Client id: 3, timestamp: 2
+Client id: 4, timestamp: 3
+Client id: 2, timestamp: 4
+Client id: 5, timestamp: 16
+Client id: 3, timestamp: 17
+Client id: 5, timestamp: 21
+Client id: 5, timestamp: 26
+Client id: 2, timestamp: 29
+Client id: 1, timestamp: 30
+Client id: 4, timestamp: 43
