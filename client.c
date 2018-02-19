@@ -370,7 +370,7 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
     pin.sin_port = htons(port); /* convert to network byte order */
     
     
-    printf("Connecting to %s:%d\n\n", hostname, port);
+    //printf("Connecting to %s:%d\n\n", hostname, port);
     
     /* connect to port on host */
     if (connect(sd,(struct sockaddr *)  &pin, sizeof(pin)) == -1) {
@@ -416,7 +416,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
     pin.sin_port = htons(port); /* convert to network byte order */
     
     
-    printf("Connecting to %s:%d\n\n", hostname, port);
+    //printf("Connecting to %s:%d\n\n", hostname, port);
     
     /* connect to port on host */
     if (connect(sd,(struct sockaddr *)  &pin, sizeof(pin)) == -1) {
