@@ -19,6 +19,7 @@
 #define BUFSIZE     80
 #define port        3304
 #define numOfClient 5
+#define numOfServer 3
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 typedef struct Request{
@@ -37,8 +38,8 @@ typedef struct Request_list {
     Request* tail;
 }Request_list;
 
-char     servername[3][BUFSIZE];
-char     clientname[5][BUFSIZE];
+char     servername[numOfServer][BUFSIZE];
+char     clientname[numOfClient][BUFSIZE];
 char     filename[3][BUFSIZE];
 int      timestamp;
 int      clientID;

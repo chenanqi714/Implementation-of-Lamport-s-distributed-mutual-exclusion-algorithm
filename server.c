@@ -18,6 +18,8 @@
 
 #define BUFSIZE     80
 #define port        3304
+#define numOfClient 5
+#define numOfServer 3
 
 typedef struct Request{
     int timestamp;
@@ -30,10 +32,10 @@ typedef struct Request{
     struct Request* prev;
 }Request;
 
-char     servername[3][BUFSIZE];
-char     clientname[5][BUFSIZE];
+char     servername[numOfServer][BUFSIZE];
+char     clientname[numOfClient][BUFSIZE];
 char     filename[3][BUFSIZE];
-char     directoryname[3][BUFSIZE];
+char     directoryname[numOfServer][BUFSIZE];
 int      serverID;
 char*    home_dir;
 
