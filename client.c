@@ -51,8 +51,6 @@ Request_list* req_list3;
 void handleClient(int* sd);
 void read_message(int sd, char* mesg);
 void send_message(int sd, char* mesg);
-void read_char(int sd, char* c);
-void send_char(int sd, char* c);
 void send_request(int sd, Request* req);
 void read_request(int sd, Request* req);
 void sendToHost(char* hostname, int* timestamp, int* clientID, int* type, int* filename);
@@ -158,19 +156,21 @@ int main(int argc, char *argv[])
         }
         else{ // no ready sockets
             
+            /*
             printf("List1: ");
             printRequestList(req_list1);
             printf("List2: ");
             printRequestList(req_list2);
             printf("List3: ");
             printRequestList(req_list3);
+            */
             
             //send releasing message
             Request* p = executeRequest();
             if(p != NULL){
                 int type = 3;
-                printf("Releasing :");
-                printRequest(p);
+                //printf("Releasing :");
+                //printRequest(p);
                 sendToHost(clientname[0], &(p->timestamp), &(p->clientID), &type, &(p->file));
                 sendToHost(clientname[1], &(p->timestamp), &(p->clientID), &type, &(p->file));
                 sendToHost(clientname[2], &(p->timestamp), &(p->clientID), &type, &(p->file));
@@ -277,8 +277,8 @@ void handleClient(int* arg){
            printf("\n");
         }
         else{
-            printf("Delete: ");
-            printRequest(p);
+            //printf("Delete: ");
+            //printRequest(p);
             removeRequest(p);
         }
     }
@@ -425,6 +425,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
     }
     else{
         Request* req = (Request*)malloc(sizeof(Request));
+        req->clientID = clientID;
         req->type = *type;
         req->file = *filename;
         strcpy(req->line, line);
@@ -473,19 +474,6 @@ void printRequestList(Request_list* req_list){
         p = p->next;
     }
     return;
-}
-
-void read_char(int sd, char* c){
-    int bytes_read = 0;
-    int count = 0;
-    while(bytes_read != 1){
-        count = read(sd, c + bytes_read, 1 - bytes_read);
-        if(count < 0){
-            printf("read char failed\n");
-            exit(1);
-        }
-        bytes_read = bytes_read + count;
-    }
 }
 
 void read_message(int sd, char* mesg){
@@ -579,15 +567,3 @@ void send_message(int sd, char* mesg){
     }
 }
 
-void send_char(int sd, char* c){
-    int bytes_sent = 0;
-    int count = 0;
-    while(bytes_sent != 1){
-        count = write(sd, c + bytes_sent, 1 - bytes_sent);
-        if(count < 0){
-            printf("send char failed\n");
-            exit(1);
-        }
-        bytes_sent = bytes_sent + count;
-    }
-}

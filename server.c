@@ -168,7 +168,7 @@ void* handleClient(void* arg){
         
         char mesg[BUFSIZ];
         sprintf(mesg, "Read last line from file%d: %s\n", req->file+1, buf);
-        printf("%s", mesg);
+        //printf("%s", mesg);
         send_message(sd, mesg);
         printRequest(req);
         
@@ -186,8 +186,8 @@ void* handleClient(void* arg){
         fclose(f);
         
         char mesg[BUFSIZ];
-        sprintf(mesg, "Write to file%d line: %s\n", req->file+1, req->line);
-        printf("%s", mesg);
+        sprintf(mesg, "Write to file%d succeed\n", req->file+1);
+        //printf("%s", mesg);
         send_message(sd, mesg);
         printRequest(req);
         return 0;
@@ -195,7 +195,10 @@ void* handleClient(void* arg){
 }
 
 void printRequest(Request* req){
-    printf("Get request from %d, Timestamp: %d, request type is %d, file is %d\n", req->clientID, req->timestamp, req->type, req->file);
+    if(req->type == 0)
+       printf("Get read request from client%d, target file is file%d\n", req->clientID, req->file+1);
+    else
+        printf("Get write request from client%d, target file is file%d, append line: %s", req->clientID, req->file+1, req->line);
 }
 
 
