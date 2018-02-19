@@ -323,6 +323,7 @@ Request* executeRequest(){
     
     if(p!= NULL){
         sendToServer(servername[0], &(p->type), &(p->file), p->line);
+        //printf("Line is %s\n", p->line);
     }
     
     return p;
@@ -420,6 +421,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
         req->type = *type;
         req->file = *filename;
         strcpy(req->line, line);
+        printf("Line is %s\n", req->line);
         
         char buf[BUFSIZ];
         send_request(sd, req);

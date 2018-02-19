@@ -147,29 +147,51 @@ void* handleClient(void* arg){
     strcpy(path, home_dir);
     strcat(path, "/");
     strcat(path, filename[req->file]);
-
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        printf("Error loading file.\n");
-        printf("path is %s\n", path);
-        _exit(1);
-    }
-    char *line;
-    char buf[BUFSIZ];
-    size_t len = 0;
-    line = (char *)malloc(BUFSIZ * sizeof(char));
-    while (getline(&line, &len, f) != -1) {             // read from file line by line
-        strcpy(buf, line);
-        //printf("%s\n", line);
-    }
-    free(line);
-    fclose(f);
     
-    char mesg[BUFSIZ];
-    sprintf(mesg, "Read last line from file%d: %s\n", req->file+1, buf);
-    printf("%s", mesg);
-    send_message(sd, mesg);
-    printRequest(req);
+    if(req->type == 0){
+        FILE *f = fopen(path, "r");
+        if (!f) {
+            printf("Error loading file.\n");
+            printf("path is %s\n", path);
+            _exit(1);
+        }
+        char *line;
+        char buf[BUFSIZ];
+        size_t len = 0;
+        line = (char *)malloc(BUFSIZ * sizeof(char));
+        while (getline(&line, &len, f) != -1) {             // read from file line by line
+            strcpy(buf, line);
+            //printf("%s\n", line);
+        }
+        free(line);
+        fclose(f);
+        
+        char mesg[BUFSIZ];
+        sprintf(mesg, "Read last line from file%d: %s\n", req->file+1, buf);
+        printf("%s", mesg);
+        send_message(sd, mesg);
+        printRequest(req);
+        
+        return 0;
+    }
+    else{
+        
+        FILE *f = fopen(path, "a");
+        if (!f) {
+            printf("Error loading file.\n");
+            printf("path is %s\n", path);
+            _exit(1);
+        }
+        fprintf(f, "%s", req->line);
+        fclose(f);
+        
+        char mesg[BUFSIZ];
+        sprintf(mesg, "Write to file%d line: %s\n", req->file+1, req->line);
+        printf("%s", mesg);
+        send_message(sd, mesg);
+        printRequest(req);
+        return 0;
+    }
 }
 
 void printRequest(Request* req){
