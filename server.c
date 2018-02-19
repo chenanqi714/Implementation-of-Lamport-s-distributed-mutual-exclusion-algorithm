@@ -167,7 +167,7 @@ void* handleClient(void* arg){
         fclose(f);
         
         char mesg[BUFSIZ];
-        sprintf(mesg, "Read last line from file%d: %s\n", req->file+1, buf);
+        sprintf(mesg, "Read last line from file%d: %s", req->file+1, buf);
         //printf("%s", mesg);
         send_message(sd, mesg);
         printRequest(req);
