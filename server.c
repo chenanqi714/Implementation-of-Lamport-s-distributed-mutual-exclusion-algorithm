@@ -173,8 +173,6 @@ void* handleClient(void* arg){
         //printf("%s", mesg);
         send_message(sd, mesg);
         printRequest(req);
-        
-        return 0;
     }
     else{
         
@@ -192,8 +190,10 @@ void* handleClient(void* arg){
         //printf("%s", mesg);
         send_message(sd, mesg);
         printRequest(req);
-        return 0;
     }
+    
+    close(sd);
+    return 0;
 }
 
 void printRequest(Request* req){

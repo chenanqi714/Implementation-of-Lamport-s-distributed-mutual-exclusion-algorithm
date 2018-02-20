@@ -224,6 +224,7 @@ void handleClient(int* arg){
     free(arg);
     Request* req = (Request*)malloc(sizeof(Request));
     read_request(sd, req);
+    close(sd);
     timestamp = MAX(timestamp, req->timestamp);
     if((req->type == 0 || req->type == 1) && (req->clientID != clientID)){
        if(req->file == 0){
@@ -387,6 +388,7 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
         req->ack = 0;
         
         send_request(sd, req);
+        close(sd);
         return;
     }
     
@@ -436,6 +438,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
         send_request(sd, req);
         read_message(sd, buf);
         printf("%s", buf);
+        close(sd);
         return;
     }
 }
