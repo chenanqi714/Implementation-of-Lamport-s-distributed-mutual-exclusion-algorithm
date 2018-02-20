@@ -175,12 +175,6 @@ void* createRequest(void* arg){
             free(temp);
         }
     
-        //send read/write request
-        /*
-        sem_wait(&mutex_timestamp);
-        ++timestamp;
-        sem_post(&mutex_timestamp);
-        */
          
         int type = (rand()%2);
         if(numOfFile == 0){
