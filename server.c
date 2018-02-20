@@ -15,11 +15,15 @@
 #include <netdb.h>
 #include <string.h>
 #include <pthread.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define BUFSIZE     80
 #define port        3304
 #define numOfClient 5
 #define numOfServer 3
+#define maxNumOfFile 100
 
 typedef struct Request{
     int timestamp;
@@ -34,7 +38,8 @@ typedef struct Request{
 
 char     servername[numOfServer][BUFSIZE];
 char     clientname[numOfClient][BUFSIZE];
-char     filename[3][BUFSIZE];
+char     filename[maxNumOfFile][BUFSIZE];
+char     filenames[BUFSIZ];
 char     directoryname[numOfServer][BUFSIZE];
 int      serverID;
 char*    home_dir;
@@ -69,15 +74,48 @@ int main(int argc, const char * argv[]) {
     strcpy(clientname[3], "dc07.utdallas.edu");
     strcpy(clientname[4], "dc08.utdallas.edu");
     
-    strcpy(filename[0], "file1");
-    strcpy(filename[1], "file2");
-    strcpy(filename[2], "file3");
-    
     strcpy(directoryname[0], "dir1");
     strcpy(directoryname[1], "dir2");
     strcpy(directoryname[2], "dir3");
     
     
+    
+    DIR *d;
+    struct dirent *dir;
+    char directory[BUFSIZ];
+    
+    gethostname(host, BUFSIZE);
+    int i = 0;
+    for(i = 0; i < 3; ++i){
+        if(strcmp(host, servername[i]) == 0){
+            serverID = i+1;
+            home_dir = directoryname[i];
+        }
+    }
+    
+    if (getcwd(directory, sizeof(directory)) != NULL){
+        fprintf(stdout, "Current working dir: %s\n", directory);
+    }
+    else{
+        perror("getcwd() error");
+        exit(1);
+    }
+    strcat(directory, "/");
+    strcat(directory, home_dir);
+    printf("%s\n", directory);
+    d = opendir(directory);
+    if (d) {
+        int i = 0;
+        while ((dir = readdir(d)) != NULL) {
+            if( dir->d_type != DT_DIR ) {
+                strcpy(filename[i], dir->d_name);
+                strcat(filenames, dir->d_name);
+                strcat(filenames, "|");
+                ++i;
+            }
+        }
+        closedir(d);
+    }
     
     
     /* create an internet domain stream socket */
@@ -105,15 +143,6 @@ int main(int argc, const char * argv[]) {
     }
     
     /* announce server is running */
-    gethostname(host, BUFSIZE);
-    int i = 0;
-    for(i = 0; i < 3; ++i){
-        if(strcmp(host, servername[i]) == 0){
-            serverID = i+1;
-            home_dir = directoryname[i];
-        }
-    }
-    
     printf("Server is running on %s:%d\n", host, port);
     
     pthread_attr_init(&attr);
@@ -163,14 +192,12 @@ void* handleClient(void* arg){
         line = (char *)malloc(BUFSIZ * sizeof(char));
         while (getline(&line, &len, f) != -1) {             // read from file line by line
             strcpy(buf, line);
-            //printf("%s\n", line);
         }
         free(line);
         fclose(f);
         
         char mesg[BUFSIZ];
-        sprintf(mesg, "Read last line from file%d: %s", req->file+1, buf);
-        //printf("%s", mesg);
+        sprintf(mesg, "Read last line from %s on server%d: %s", filename[req->file], serverID, buf);
         send_message(sd, mesg);
         printRequest(req);
     }
@@ -186,16 +213,12 @@ void* handleClient(void* arg){
         fclose(f);
         
         char mesg[BUFSIZ];
-        sprintf(mesg, "Write to file%d succeed\n", req->file+1);
-        //printf("%s", mesg);
+        sprintf(mesg, "Write to %s on server%d succeed\n", filename[req->file], serverID);
         send_message(sd, mesg);
         printRequest(req);
     }
     else{
-        char mesg[BUFSIZ];
-        sprintf(mesg, "List all files\n");
-        //printf("%s", mesg);
-        send_message(sd, mesg);
+        send_message(sd, filenames);
         printRequest(req);
     }
     
@@ -205,9 +228,9 @@ void* handleClient(void* arg){
 
 void printRequest(Request* req){
     if(req->type == 0)
-       printf("Get read request from client%d, target file is file%d\n", req->clientID, req->file+1);
+       printf("Get read request from client%d, target file is %s\n", req->clientID, filename[req->file]);
     else if(req->type == 1)
-        printf("Get write request from client%d, target file is file%d, append line: %s", req->clientID, req->file+1, req->line);
+        printf("Get write request from client%d, target file is %s, append line: %s", req->clientID, filename[req->file], req->line);
     else
         printf("Get list all files request from client%d\n", req->clientID);
 }
