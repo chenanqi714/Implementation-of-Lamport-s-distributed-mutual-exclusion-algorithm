@@ -213,7 +213,7 @@ void* handleClient(void* arg){
         fclose(f);
         
         char mesg[BUFSIZ];
-        sprintf(mesg, "Write to %s on server%d succeed\n", filename[req->file], serverID);
+        sprintf(mesg, "Write to %s on server%d: %s", filename[req->file], serverID, req->line);
         send_message(sd, mesg);
         printRequest(req);
     }

@@ -48,10 +48,8 @@ int      timestamp;
 int      clientID;
 int      numOfFile;
 sem_t    mutex_array[maxNumOfFile];
+sem_t    mutex_timestamp;
 Request_list* req_list[maxNumOfFile];
-Request_list* req_list1;
-Request_list* req_list2;
-Request_list* req_list3;
 
 
 void* handleClient(void*);
@@ -114,6 +112,7 @@ int main(int argc, char *argv[])
         req_list[i] = createList();
         sem_init(&mutex_array[i], 0, 1);
     }
+    sem_init(&mutex_timestamp, 0, 1);
     
     pthread_create(&HandleRequest, NULL, createHost, NULL);
     usleep(5000000);
@@ -177,7 +176,12 @@ void* createRequest(void* arg){
         }
     
         //send read/write request
+        /*
+        sem_wait(&mutex_timestamp);
         ++timestamp;
+        sem_post(&mutex_timestamp);
+        */
+         
         int type = (rand()%2);
         if(numOfFile == 0){
             printf("No file exists!\n");
@@ -186,14 +190,20 @@ void* createRequest(void* arg){
         int filename = (rand()%numOfFile);
     
         Request* req = (Request*)malloc(sizeof(Request));
-        req->timestamp = timestamp;
+        
+        int tmp = 0;
+        sem_wait(&mutex_timestamp);
+        tmp = ++timestamp;
+        sem_post(&mutex_timestamp);
+        
         req->clientID = clientID;
         req->type = type;
         req->file = filename;
         req->ack = 0;
+        req->timestamp = tmp;
     
         if(type == 1){
-           sprintf(req->line, "Client id: %d, timestamp: %d\n", clientID, timestamp);
+           sprintf(req->line, "Client id: %d, timestamp: %d\n", clientID, req->timestamp);
         }
     
         i = 0;
@@ -201,15 +211,15 @@ void* createRequest(void* arg){
             if(req->file == i){
                 sem_wait(&mutex_array[i]);
                 addRequestToList(req_list[i], req);
+                req->ack++;
                 sem_post(&mutex_array[i]);
             }
         }
-
-        req->ack++;
-   
+        //printf("File: %d, type: %d, Client: %d, timestamp: %d\n",filename, type, clientID, tmp);
         for(i = 0 ; i < numOfClient; ++i){
             if(i+1 != clientID){
-                sendToHost(clientname[i], &timestamp, &clientID, &type, &filename);
+                //printf("File: %d, type: %d, Client: %d, timestamp: %d\n",filename, type, clientID, tmp);
+                sendToHost(clientname[i], &tmp, &clientID, &type, &filename);
             }
         }
     }
@@ -276,6 +286,7 @@ void* createHost(void* arg){
         *sd_client = sd_current;
         
         pthread_create(&tid, &attr, handleClient, sd_client);
+        //handleClient(sd_client);
     }
     
     return NULL;;
@@ -288,7 +299,10 @@ void* handleClient(void* arg){
     Request* req = (Request*)malloc(sizeof(Request));
     read_request(sd, req);
     close(sd);
+    
+    sem_wait(&mutex_timestamp);
     timestamp = MAX(timestamp, req->timestamp);
+    sem_post(&mutex_timestamp);
 
     if((req->type == 0 || req->type == 1) && (req->clientID != clientID)){
       
@@ -325,7 +339,9 @@ void* handleClient(void* arg){
             printRequest(req);
         }
         else{
+            sem_wait(&mutex_array[i]);
             p->ack++;
+            sem_post(&mutex_array[i]);
         }
         free(req);
         
