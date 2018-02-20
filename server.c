@@ -174,7 +174,7 @@ void* handleClient(void* arg){
         send_message(sd, mesg);
         printRequest(req);
     }
-    else{
+    else if(req->type == 1){
         
         FILE *f = fopen(path, "a");
         if (!f) {
@@ -191,6 +191,13 @@ void* handleClient(void* arg){
         send_message(sd, mesg);
         printRequest(req);
     }
+    else{
+        char mesg[BUFSIZ];
+        sprintf(mesg, "List all files\n");
+        //printf("%s", mesg);
+        send_message(sd, mesg);
+        printRequest(req);
+    }
     
     close(sd);
     return 0;
@@ -199,8 +206,10 @@ void* handleClient(void* arg){
 void printRequest(Request* req){
     if(req->type == 0)
        printf("Get read request from client%d, target file is file%d\n", req->clientID, req->file+1);
-    else
+    else if(req->type == 1)
         printf("Get write request from client%d, target file is file%d, append line: %s", req->clientID, req->file+1, req->line);
+    else
+        printf("Get list all files request from client%d\n", req->clientID);
 }
 
 

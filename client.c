@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 #define BUFSIZE     80
 #define port        3304
@@ -43,13 +45,15 @@ char     clientname[numOfClient][BUFSIZE];
 char     filename[3][BUFSIZE];
 int      timestamp;
 int      clientID;
+sem_t    mutex;
 Request_list* req_list1;
 Request_list* req_list2;
 Request_list* req_list3;
 
 
-
-void handleClient(int* sd);
+void* handleClient(void*);
+void* createHost(void*);
+void* createRequest(void*);
 void read_message(int sd, char* mesg);
 void send_message(int sd, char* mesg);
 void send_request(int sd, Request* req);
@@ -67,13 +71,8 @@ void removeRequest(Request* req);
 int main(int argc, char *argv[])
 {
     
-    char     host[BUFSIZE];
-    int      sd, sd_current;
-    int      *sd_client;
-    int      addrlen;
-    struct   sockaddr_in sin;
-    struct   sockaddr_in pin;
-    
+    pthread_t  Host;
+    pthread_t  Request;
     
     strcpy(servername[0], "dc01.utdallas.edu");
     strcpy(servername[1], "dc02.utdallas.edu");
@@ -88,6 +87,101 @@ int main(int argc, char *argv[])
     strcpy(filename[0], "file1");
     strcpy(filename[1], "file2");
     strcpy(filename[2], "file3");
+ 
+    timestamp = 0;
+    req_list1 = createList();
+    req_list2 = createList();
+    req_list3 = createList();
+    
+    srand(time(0));
+    sem_init(&mutex, 0, 1);
+
+    pthread_create(&Host, NULL, createHost, NULL);
+    usleep(5000000);
+    pthread_create(&Request, NULL, createRequest, NULL);
+    pthread_join(Host, NULL);
+    pthread_join(Request, NULL);
+    
+    return 0;
+}
+
+
+void* createRequest(void* arg){
+    while(1){
+        usleep(1000000);
+        
+        sem_wait(&mutex);
+        Request* p = executeRequest();
+        sem_post(&mutex);
+        
+        if(p != NULL){
+            int type = 3;
+            //printf("Releasing :");
+            //printRequest(p);
+            
+            Request* temp = (Request*)malloc(sizeof(Request));
+            temp->clientID = p->clientID;
+            temp->timestamp = p->timestamp;
+            temp->file = p->file;
+            
+            int i;
+            for(i = 0; i < numOfClient; ++i){
+                sendToHost(clientname[i], &(temp->timestamp), &(temp->clientID), &type, &(temp->file));
+            }
+
+            free(temp);
+        }
+    
+        //send read/write request
+        ++timestamp;
+        int type = (rand()%2);
+        int filename = (rand()%3);
+    
+        Request* req = (Request*)malloc(sizeof(Request));
+        req->timestamp = timestamp;
+        req->clientID = clientID;
+        req->type = type;
+        req->file = filename;
+        req->ack = 0;
+    
+        if(type == 1){
+           sprintf(req->line, "Client id: %d, timestamp: %d\n", clientID, timestamp);
+        }
+    
+        sem_wait(&mutex);
+        if(req->file == 0){
+           addRequestToList(req_list1, req);
+        }
+        if(req->file == 1){
+           addRequestToList(req_list2, req);
+        }
+        if(req->file == 2){
+           addRequestToList(req_list3, req);
+        }
+    
+        req->ack++;
+        sem_post(&mutex);
+   
+        int i;
+        for(i = 0 ; i < 5; ++i){
+            if(i+1 != clientID){
+                sendToHost(clientname[i], &timestamp, &clientID, &type, &filename);
+            }
+        }
+    }
+    return NULL;;
+}
+
+void* createHost(void* arg){
+    
+    char     host[BUFSIZE];
+    int      sd, sd_current;
+    int      addrlen;
+    int      *sd_client;
+    struct   sockaddr_in sin;
+    struct   sockaddr_in pin;
+    pthread_attr_t attr;
+    pthread_t tid;
     
     /* create an internet domain stream socket */
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -122,111 +216,40 @@ int main(int argc, char *argv[])
         }
     }
     printf("Client is running on %s:%d\n", host, port);
-    usleep(5000000);
-    timestamp = 0;
-    req_list1 = createList();
-    req_list2 = createList();
-    req_list3 = createList();
     
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED); /* use detached threads */
     addrlen = sizeof(pin);
     while (1)
     {
-        fd_set readfds;
-        FD_ZERO(&readfds);
-        FD_SET(sd, &readfds);
-        struct timeval timeout;
-        timeout.tv_sec = 1;
-        
-        srand(time(NULL));
-        
-        int ret = select(5, &readfds, NULL, NULL, &timeout);
-        
-        if(ret == -1) //error
-            //if ((sd_current = accept(sd, (struct sockaddr *)  &pin, (socklen_t*)&addrlen)) == -1)
+        if ((sd_current = accept(sd, (struct sockaddr *)  &pin, (socklen_t*)&addrlen)) == -1)
         {
-            
-            perror("Error on select call");
+            perror("Error on accept call");
             exit(1);
         }
-        else if(ret !=0){ //there exists ready sockets
-            sd_current = accept(sd, (struct sockaddr *)  &pin, (socklen_t*)&addrlen);
-            sd_client = (int*)(malloc(sizeof(sd_current)));
-            *sd_client = sd_current;
-            handleClient(sd_client);
-            
-        }
-        else{ // no ready sockets
-            
-            /*
-            printf("List1: ");
-            printRequestList(req_list1);
-            printf("List2: ");
-            printRequestList(req_list2);
-            printf("List3: ");
-            printRequestList(req_list3);
-            */
-            
-            //send releasing message
-            Request* p = executeRequest();
-            if(p != NULL){
-                int type = 3;
-                //printf("Releasing :");
-                //printRequest(p);
-                sendToHost(clientname[0], &(p->timestamp), &(p->clientID), &type, &(p->file));
-                sendToHost(clientname[1], &(p->timestamp), &(p->clientID), &type, &(p->file));
-                sendToHost(clientname[2], &(p->timestamp), &(p->clientID), &type, &(p->file));
-                sendToHost(clientname[3], &(p->timestamp), &(p->clientID), &type, &(p->file));
-                sendToHost(clientname[4], &(p->timestamp), &(p->clientID), &type, &(p->file));
-            }
-            
-            //send read/write request
-            ++timestamp;
-            int type = (rand()%2);
-            int filename = (rand()%3);
-            
-            Request* req = (Request*)malloc(sizeof(Request));
-            req->timestamp = timestamp;
-            req->clientID = clientID;
-            req->type = type;
-            req->file = filename;
-            req->ack = 0;
-            
-            if(type == 1){
-                sprintf(req->line, "Client id: %d, timestamp: %d\n", clientID, timestamp);
-            }
-            
-            if(req->file == 0){
-                addRequestToList(req_list1, req);
-            }
-            if(req->file == 1){
-                addRequestToList(req_list2, req);
-            }
-            if(req->file == 2){
-                addRequestToList(req_list3, req);
-            }
-            
-            req->ack++;
-            
-            sendToHost(clientname[0], &timestamp, &clientID, &type, &filename);
-            sendToHost(clientname[1], &timestamp, &clientID, &type, &filename);
-            sendToHost(clientname[2], &timestamp, &clientID, &type, &filename);
-            sendToHost(clientname[3], &timestamp, &clientID, &type, &filename);
-            sendToHost(clientname[4], &timestamp, &clientID, &type, &filename);
-            
-        }
+        
+        sd_client = (int*)(malloc(sizeof(sd_current)));
+        *sd_client = sd_current;
+        
+        pthread_create(&tid, &attr, handleClient, sd_client);
+        //handleClient(sd_client);
     }
-    return 0;
+    
+    return NULL;;
 }
 
 
-void handleClient(int* arg){
+void* handleClient(void* arg){
     int sd = *((int*)arg);
     free(arg);
     Request* req = (Request*)malloc(sizeof(Request));
     read_request(sd, req);
     close(sd);
     timestamp = MAX(timestamp, req->timestamp);
+
     if((req->type == 0 || req->type == 1) && (req->clientID != clientID)){
+        
+       sem_wait(&mutex);
        if(req->file == 0){
            addRequestToList(req_list1, req);
        }
@@ -236,10 +259,13 @@ void handleClient(int* arg){
         if(req->file == 2){
            addRequestToList(req_list3, req);
         }
-
+        sem_post(&mutex);
+        
         int type = 2;
         //send ack
+        
         sendToHost(clientname[req->clientID-1],&(req->timestamp), &(req->clientID), &type, &(req->file));
+        
     }
     if(req->type == 2){
         Request_list* l;
@@ -252,14 +278,20 @@ void handleClient(int* arg){
         else{
             l = req_list3;
         }
+        
+        sem_wait(&mutex);
         Request* p = getRequest(l, req->timestamp, req->clientID);
+        sem_post(&mutex);
+        free(req);
         if(p == NULL){
             printf("NULL error\n");
             printRequest(req);
-            printf("\n");
+            //p = getRequest(l, req->timestamp, req->clientID);
         }
-        else
+        else{
             p->ack++;
+        }
+        
     }
     if(req->type == 3){
         Request_list* l;
@@ -272,18 +304,23 @@ void handleClient(int* arg){
         else{
             l = req_list3;
         }
+        
+        sem_wait(&mutex);
         Request* p = getRequest(l, req->timestamp, req->clientID);
+        sem_post(&mutex);
+        free(req);
         if(p == NULL){
            printf("NULL error\n");
            printRequest(req);
            printf("\n");
         }
         else{
-            //printf("Delete: ");
-            //printRequest(p);
+            sem_wait(&mutex);
             removeRequest(p);
+            sem_post(&mutex);
         }
     }
+    return NULL;
 }
 
 Request_list* createList(){
@@ -329,9 +366,15 @@ Request* executeRequest(){
             sendToServer(servername[i], &(p->type), &(p->file), p->line);
         }
         else{
+            int i = 0;
+            for(i=0; i< numOfServer; ++i){
+                sendToServer(servername[i], &(p->type), &(p->file), p->line);
+            }
+            /*
             sendToServer(servername[0], &(p->type), &(p->file), p->line);
             sendToServer(servername[1], &(p->type), &(p->file), p->line);
             sendToServer(servername[2], &(p->type), &(p->file), p->line);
+             */
         }
     }
     
@@ -388,6 +431,7 @@ void sendToHost(char *hostname, int* timestamp, int* clientID, int* type, int* f
         req->ack = 0;
         
         send_request(sd, req);
+        free(req);
         close(sd);
         return;
     }
@@ -438,6 +482,7 @@ void sendToServer(char* hostname, int* type, int* filename, char* line){
         send_request(sd, req);
         read_message(sd, buf);
         printf("%s", buf);
+        free(req);
         close(sd);
         return;
     }
