@@ -68,7 +68,6 @@ void addRequestToList(Request_list* req_list, Request* req);
 void printRequestList(Request_list* req_list);
 Request_list* createList(void);
 Request* getRequest(Request_list* list, int timestamp, int clientID);
-Request* executeRequest(void);
 void removeRequest(Request* req);
 
 int main(int argc, char *argv[])
@@ -117,7 +116,7 @@ int main(int argc, char *argv[])
     }
     
     pthread_create(&HandleRequest, NULL, createHost, NULL);
-    usleep(10000000);
+    usleep(5000000);
     pthread_create(&SendRequest, NULL, createRequest, NULL);
     pthread_join(HandleRequest, NULL);
     pthread_join(SendRequest, NULL);
@@ -128,7 +127,7 @@ int main(int argc, char *argv[])
 
 void* createRequest(void* arg){
     while(1){
-        //usleep(1000000);
+        usleep(500000);
         
         Request* p = NULL;
         int i = 0;
@@ -321,8 +320,6 @@ void* handleClient(void* arg){
         Request* p = getRequest(l, req->timestamp, req->clientID);
         sem_post(&mutex_array[i]);
         
-        free(req);
-        
         if(p == NULL){
             printf("NULL error\n");
             printRequest(req);
@@ -330,6 +327,7 @@ void* handleClient(void* arg){
         else{
             p->ack++;
         }
+        free(req);
         
     }
     if(req->type == 3){
@@ -382,40 +380,6 @@ Request* getRequest(Request_list* list, int timestamp, int clientID){
             p = p->next;
     }
     return NULL;
-}
-
-Request* executeRequest(){
-    
-    Request* p = NULL;
-    int i = 0;
-    for(i = 0; i < numOfFile; ++i){
-        sem_wait(&mutex_array[i]);
-        p = req_list[i]->head->next;
-        if(p != req_list[i]->tail && p->clientID == clientID && p->ack == numOfClient){
-            sem_post(&mutex_array[i]);
-            break;
-        }
-        else{
-            sem_post(&mutex_array[i]);
-        }
-    }
-    
-    
-    if(p!= NULL){
-        if(p->type == 0){
-            int i = rand()%numOfServer;
-            sendToServer(servername[i], &(p->type), &(p->file), p->line);
-        }
-        else{
-            int i = 0;
-            for(i=0; i< numOfServer; ++i){
-                sendToServer(servername[i], &(p->type), &(p->file), p->line);
-            }
-        }
-    }
-     
-    
-    return p;
 }
 
 void removeRequest(Request* req){
