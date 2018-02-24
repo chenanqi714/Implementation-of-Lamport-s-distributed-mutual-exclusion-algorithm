@@ -18,6 +18,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string.h>
+
 
 #define BUFSIZE     80
 #define port        3304
@@ -80,9 +82,10 @@ int main(int argc, const char * argv[]) {
     
     
     
-    DIR *d;
+    int n;
     struct dirent *dir;
     char directory[BUFSIZ];
+    struct dirent **namelist;
     
     gethostname(host, BUFSIZE);
     int i = 0;
@@ -102,20 +105,24 @@ int main(int argc, const char * argv[]) {
     }
     strcat(directory, "/");
     strcat(directory, home_dir);
-    printf("%s\n", directory);
-    d = opendir(directory);
-    if (d) {
+    //printf("%s\n", directory);
+    n = scandir(directory, &namelist, 0, alphasort);
+    if (n < 0)
+        perror("scandir");
+    else {
         int i = 0;
-        while ((dir = readdir(d)) != NULL) {
-            if( dir->d_type != DT_DIR ) {
-                strcpy(filename[i], dir->d_name);
-                strcat(filenames, dir->d_name);
+        int j = 0;
+        for(i = 0; i < n; ++i) {
+            if(namelist[i]->d_type != DT_DIR ){
+                strcpy(filename[j], namelist[i]->d_name);
+                strcat(filenames, namelist[i]->d_name);
                 strcat(filenames, "|");
-                ++i;
+                ++j;
             }
+            free(namelist[i]);
         }
-        closedir(d);
     }
+    //printf("filenames: %s\n", filenames);
     
     
     /* create an internet domain stream socket */
@@ -326,5 +333,7 @@ void send_request(int sd, Request* req){
         bytes_sent = bytes_sent + count;
     }
 }
+
+
                 
                 
